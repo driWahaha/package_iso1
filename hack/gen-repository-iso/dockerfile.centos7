@@ -9,13 +9,11 @@ ENV K3S_SELINUX="https://rpm.rancher.io/k3s/latest/common/centos/7/noarch/k3s-se
 RUN yum install -q -y ${BUILD_TOOLS} \
     && yum-config-manager --add-repo https://download.docker.com/linux/centos/docker-ce.repo \
     && yum makecache
-RUN mkdir -p ${DIR} && curl -o ${DIR}/${K3S_SELINUX//*\//} ${K3S_SELINUX}
-
 WORKDIR package
 COPY packages.yaml .
 COPY --from=mikefarah/yq:4.11.1 /usr/bin/yq /usr/bin/yq
 RUN yq eval ".common[],.rpms[],.${OS}[],.${OS}${OS_VERSION}[]" packages.yaml > packages.list
-
+RUN mkdir -p ${DIR} && curl -o ${DIR}/${K3S_SELINUX//*\//} ${K3S_SELINUX} && ls -alh ${DIR}
 RUN sort -u packages.list | xargs repotrack -p ${DIR} \
     && createrepo -d ${DIR} \
     && mkisofs -r -o ${DIR}.iso ${DIR}
