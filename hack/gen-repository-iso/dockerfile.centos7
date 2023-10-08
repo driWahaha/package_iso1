@@ -4,16 +4,13 @@ ENV OS=centos
 ENV OS_VERSION=7
 ARG BUILD_TOOLS="yum-utils createrepo mkisofs epel-release"
 ARG DIR=${OS}${OS_VERSION}-${TARGETARCH}-rpms
-ENV K3S_SELINUX="https://rpm.rancher.io/k3s/latest/common/centos/7/noarch/k3s-selinux-1.4-1.el7.noarch.rpm"
-
+COPY k3s-common.repo /etc/yum.repos.d/
 RUN yum install -q -y ${BUILD_TOOLS} \
-    && yum-config-manager --add-repo https://download.docker.com/linux/centos/docker-ce.repo \
     && yum makecache
 WORKDIR package
 COPY packages.yaml .
 COPY --from=mikefarah/yq:4.11.1 /usr/bin/yq /usr/bin/yq
 RUN yq eval ".common[],.rpms[],.${OS}[],.${OS}${OS_VERSION}[]" packages.yaml > packages.list
-RUN mkdir -p ${DIR} && curl -o ${DIR}/${K3S_SELINUX//*\//} ${K3S_SELINUX} && ls -alh ${DIR}
 RUN sort -u packages.list | xargs repotrack -p ${DIR} \
     && createrepo -d ${DIR} \
     && mkisofs -r -o ${DIR}.iso ${DIR}

@@ -18,6 +18,8 @@ rpms:
   - conntrack-tools
   - container-selinux
   - selinux-policy-base
+  # in k3s-common repo
+  - k3s-selinux
 
 debs:
 
