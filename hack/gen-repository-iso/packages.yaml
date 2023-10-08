@@ -1,11 +1,7 @@
 ---
 common:
-  - curl
-  - ceph-common
+  - sudo
   - net-tools
-  - lvm2
-  - telnet
-  - tcpdump
   - socat
   - openssl
   - chrony
@@ -13,76 +9,38 @@ common:
   - curl
   - ipvsadm
   - ipset
-  - psmisc
   - bash-completion
   - ebtables
-  - haproxy
-  - keepalived
+
 rpms:
-  - nfs-utils
   - yum-utils
   - bind-utils
-  - glusterfs-fuse
-  - lz4
-  - nss
-  - nss-sysinit
-  - nss-tools
   - conntrack-tools
+  - container-selinux
+  - selinux-policy-base
+
 debs:
-  - apt-transport-https
-  - ca-certificates
-  - dnsutils
-  - git
-  - glusterfs-client
-  - gnupg-agent
-  - nfs-common
-  - openssh-server
-  - software-properties-common
-  - sudo
 
 centos:
-  - containerd.io
 
 centos7:
-  - libselinux-python
-  - docker-ce-20.10.8
-  - docker-ce-cli-20.10.8
 
 debian:
-  - containerd.io
 
 debian10:
-  - docker-ce=5:20.10.8~3-0~debian-buster
-  - docker-ce-cli=5:20.10.8~3-0~debian-buster
 
 debian11:
-  - docker-ce=5:20.10.8~3-0~debian-bullseye
-  - docker-ce-cli=5:20.10.8~3-0~debian-bullseye
 
 ubuntu:
-  - containerd.io
 
 ubuntu1604:
-  - docker-ce=5:20.10.8~3-0~ubuntu-xenial
-  - docker-ce-cli=5:20.10.8~3-0~ubuntu-xenial
 
 ubuntu1804:
-  - docker-ce=5:20.10.8~3-0~ubuntu-bionic
-  - docker-ce-cli=5:20.10.8~3-0~ubuntu-bionic
 
 ubuntu2004:
-  - docker-ce=5:20.10.8~3-0~ubuntu-focal
-  - docker-ce-cli=5:20.10.8~3-0~ubuntu-focal
 
-# The minimum version of docker-ce on ubuntu 2204 is 20.10.13
 ubuntu2204:
-  - docker-ce=5:20.10.13~3-0~ubuntu-jammy
-  - docker-ce-cli=5:20.10.13~3-0~ubuntu-jammy
 
 almalinux:
-  - containerd.io
-  - docker-compose-plugin
 
 almalinux90:
-  - docker-ce-20.10.17
-  - docker-ce-cli-20.10.17
