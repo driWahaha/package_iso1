@@ -49,5 +49,7 @@ almalinux90:
 
 openEuler:
   - chrony
+  - k3s-selinux
 kylin:
   - chrony
+  - k3s-selinux
