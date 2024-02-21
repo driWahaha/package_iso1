@@ -18,6 +18,8 @@ jobs:
             dockerfile: dockerfile.centos7
           - name: openEuler-22.03-rpms
             dockerfile: dockerfile.openEuler2203
+          - name: openEuler-23.09-rpms
+            dockerfile: dockerfile.openEuler2309
           - name: kylin-V10-rpms
             dockerfile: dockerfile.kylinV10
           # - name: almalinux-9.0-rpms
