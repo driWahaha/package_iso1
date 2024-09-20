@@ -1,0 +1,20 @@
+FROM ixuzhi/uos-server:1070e AS uos
+ARG TARGETARCH
+ENV OS=uos
+ENV OS_VERSION=20
+ARG BUILD_TOOLS="findutils dnf-utils createrepo genisoimage"
+ARG DIR=${OS}${OS_VERSION}-${TARGETARCH}-rpms
+RUN echo "timeout=600" >> /etc/yum.conf && echo "retries=20" >> /etc/yum.conf
+COPY k3s-common.repo /etc/yum.repos.d/
+RUN yum install --nogpgcheck -q -y ${BUILD_TOOLS} \
+    && yum makecache
+WORKDIR /package
+COPY packages.yaml .
+COPY --from=mikefarah/yq:4.11.1 /usr/bin/yq /usr/bin/yq
+RUN yq eval ".common[],.${OS}[],.${OS}${OS_VERSION}[]" packages.yaml > packages.list
+RUN sort -u packages.list | xargs repotrack --destdir ${DIR} \
+    && createrepo -d ${DIR} \
+    && genisoimage -r -o ${DIR}.iso ${DIR}
+
+FROM scratch
+COPY --from=uos /package/*.iso /

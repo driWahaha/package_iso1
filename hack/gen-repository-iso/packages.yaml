@@ -1,25 +1,7 @@
 ---
 common:
-  - sudo
-  - net-tools
-  - socat
-  - openssl
-  - chrony
-  - conntrack
-  - curl
-  - ipvsadm
-  - ipset
-  - bash-completion
-  - ebtables
 
 rpms:
-  - yum-utils
-  - bind-utils
-  - conntrack-tools
-  - container-selinux
-  - selinux-policy-base
-  # in k3s-common repo
-  - k3s-selinux
 
 debs:
 
@@ -53,3 +35,7 @@ openEuler:
 kylin:
   - chrony
   - k3s-selinux
+uos:
+  - chrony
+  - k3s-selinux
+  - bash-completion
