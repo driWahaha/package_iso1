@@ -6,6 +6,11 @@ rpms:
 debs:
 
 centos:
+  - chrony
+  - k3s-selinux
+  - audit
+  - audit-libs
+  - audit-libs-python
 
 centos7:
 

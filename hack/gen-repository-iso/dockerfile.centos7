@@ -4,9 +4,14 @@ ENV OS=centos
 ENV OS_VERSION=7
 ARG BUILD_TOOLS="yum-utils createrepo mkisofs epel-release"
 ARG DIR=${OS}${OS_VERSION}-${TARGETARCH}-rpms
-COPY k3s-common.repo /etc/yum.repos.d/
-RUN yum install -q -y ${BUILD_TOOLS} \
-    && yum makecache
+RUN rm -f /etc/yum.repos.d/*
+COPY k3s-common.repo Centos7-tencent-x86_64.repo Centos7-tencent-altarch.repo /etc/yum.repos.d/
+RUN if [ "$TARGETARCH" = "amd64" ]; then \
+    rm -f /etc/yum.repos.d/Centos7-tencent-altarch.repo; \
+    else \
+    rm -f /etc/yum.repos.d/Centos7-tencent-x86_64.repo; \
+    fi
+RUN yum makecache && yum install -q -y ${BUILD_TOOLS}
 WORKDIR package
 COPY packages.yaml .
 COPY --from=mikefarah/yq:4.11.1 /usr/bin/yq /usr/bin/yq
