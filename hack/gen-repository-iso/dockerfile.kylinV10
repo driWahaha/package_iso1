@@ -9,7 +9,7 @@ RUN yum install --nogpgcheck -q -y ${BUILD_TOOLS} \
     && yum makecache
 WORKDIR package
 COPY packages.yaml .
-COPY --from=mikefarah/yq:4.11.1 /usr/bin/yq /usr/bin/yq
+COPY --from=mikefarah/yq:4.34.2 /usr/bin/yq /usr/bin/yq
 RUN yq eval ".common[],.${OS}[],.${OS}${OS_VERSION}[]" packages.yaml > packages.list
 RUN sort -u packages.list | xargs repotrack --destdir ${DIR} \
     && createrepo -d ${DIR} \
