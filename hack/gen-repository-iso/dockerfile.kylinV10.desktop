@@ -1,5 +1,5 @@
 # 基础镜像使用麒麟桌面版（Debian 系）
-FROM feimingxliu/kylinos:v10-debian as builder
+FROM debian:10 as builder
 
 # 设置构建参数
 ARG TARGETARCH
