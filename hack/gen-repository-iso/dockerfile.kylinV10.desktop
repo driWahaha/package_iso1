@@ -1,0 +1,48 @@
+FROM feimingxliu/kylinos:v10-deb as kylin
+ARG TARGETARCH
+ENV OS=kylin
+ENV OS_VERSION=V10
+ARG BUILD_TOOLS="findutils apt-utils dpkg-dev apt-repository genisoimage"
+ARG DIR=${OS}${OS_VERSION}-${TARGETARCH}-debs
+
+# 清理默认源并配置DEB仓库
+RUN rm -f /etc/apt/sources.list.d/* /etc/apt/sources.list
+COPY k3s-common.list /etc/apt/sources.list.d/
+RUN echo "deb http://mirrors.麒麟.deb/mirrors.txt ${OS_VERSION} main" >> /etc/apt/sources.list \
+    && apt update
+
+WORKDIR package
+COPY packages.yaml .
+COPY --from=mikefarah/yq:4.34.2 /usr/bin/yq /usr/bin/yq
+
+# 生成DEB包列表
+RUN yq eval ".common[],.${OS}[],.${OS}${OS_VERSION}[]" packages.yaml > packages.list
+RUN sort -u packages.list > packages_uniq.list
+
+# 下载DEB包并处理依赖
+RUN mkdir -p ${DIR}/pool/main
+RUN while IFS= read -r package; do \
+    echo "Downloading: $package"; \
+    apt-get download $package || { \
+        echo "Failed to download $package, trying with alternative source"; \
+        apt-get -o Acquire::Retries=3 download $package || { \
+            echo "ERROR: $package not found"; \
+            exit 1; \
+        }; \
+    }; \
+    mv *.deb ${DIR}/pool/main/; \
+done < packages_uniq.list
+
+# 生成DEB仓库元数据
+RUN cd ${DIR} && \
+    apt-ftparchive packages pool > Packages && \
+    gzip -9c Packages > Packages.gz && \
+    apt-ftparchive release . > Release && \
+    dpkg-sig --sign Release Release && \
+    cp Release Release.gpg
+
+# 打包为ISO
+RUN genisoimage -r -o ${DIR}.iso ${DIR}
+
+FROM scratch
+COPY --from=kylin /package/*.iso /
