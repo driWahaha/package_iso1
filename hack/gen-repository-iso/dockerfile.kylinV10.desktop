@@ -1,48 +1,53 @@
-FROM feimingxliu/kylinos:v10-deb as kylin
+# 基础镜像使用麒麟桌面版（Debian 系）
+FROM feimingxliu/kylinos:v10-debian as builder
+
+# 设置构建参数
 ARG TARGETARCH
-ENV OS=kylin
-ENV OS_VERSION=V10
-ARG BUILD_TOOLS="findutils apt-utils dpkg-dev apt-repository genisoimage"
-ARG DIR=${OS}${OS_VERSION}-${TARGETARCH}-debs
+ARG OS=kylin
+ARG OS_VERSION=V10
+ARG OS_RELEASE=buster
+ARG DIR=${OS}${OS_VERSION}-debian-${TARGETARCH}-debs
+ARG PKGS=.common[],.${OS}[],.${OS}Debian[],.${OS}${OS_VERSION}[]
+ARG BUILD_TOOLS="apt-transport-https software-properties-common ca-certificates curl wget gnupg dpkg-dev genisoimage dirmngr"
 
-# 清理默认源并配置DEB仓库
-RUN rm -f /etc/apt/sources.list.d/* /etc/apt/sources.list
-COPY k3s-common.list /etc/apt/sources.list.d/
-RUN echo "deb http://mirrors.麒麟.deb/mirrors.txt ${OS_VERSION} main" >> /etc/apt/sources.list \
-    && apt update
+# 设置环境变量
+ENV DEBIAN_FRONTEND=noninteractive
+ENV TARGETARCH=${TARGETARCH}
 
-WORKDIR package
+# 复制软件包列表配置文件
+WORKDIR /package
 COPY packages.yaml .
+
+# 安装构建工具
+RUN apt update -qq \
+    && apt install -y --no-install-recommends $BUILD_TOOLS \
+    && apt clean \
+    && rm -rf /var/lib/apt/lists/*
+
+# 生成软件包列表
 COPY --from=mikefarah/yq:4.34.2 /usr/bin/yq /usr/bin/yq
+RUN yq eval "${PKGS}" packages.yaml > packages.list \
+    && sort -u packages.list > packages.final.list
 
-# 生成DEB包列表
-RUN yq eval ".common[],.${OS}[],.${OS}${OS_VERSION}[]" packages.yaml > packages.list
-RUN sort -u packages.list > packages_uniq.list
+# 下载软件包及其依赖
+RUN mkdir -p ${DIR} \
+    && apt-get download $(cat packages.final.list) \
+    && find . -name "*.deb" -exec mv {} ${DIR}/ \;
 
-# 下载DEB包并处理依赖
-RUN mkdir -p ${DIR}/pool/main
-RUN while IFS= read -r package; do \
-    echo "Downloading: $package"; \
-    apt-get download $package || { \
-        echo "Failed to download $package, trying with alternative source"; \
-        apt-get -o Acquire::Retries=3 download $package || { \
-            echo "ERROR: $package not found"; \
-            exit 1; \
-        }; \
-    }; \
-    mv *.deb ${DIR}/pool/main/; \
-done < packages_uniq.list
+# 生成 DEB 仓库元数据
+RUN cd ${DIR} \
+    && dpkg-scanpackages ./ /dev/null | gzip -9c > Packages.gz \
+    && echo "Origin: Kylin ${OS_VERSION} Offline Repo" > Release \
+    && echo "Label: Kylin" >> Release \
+    && echo "Version: ${OS_VERSION}" >> Release \
+    && echo "Codename: ${OS_RELEASE}" >> Release \
+    && echo "Architectures: ${TARGETARCH}" >> Release \
+    && echo "Components: main" >> Release \
+    && echo "Description: Offline packages for Kylin Desktop ${OS_VERSION}" >> Release
 
-# 生成DEB仓库元数据
-RUN cd ${DIR} && \
-    apt-ftparchive packages pool > Packages && \
-    gzip -9c Packages > Packages.gz && \
-    apt-ftparchive release . > Release && \
-    dpkg-sig --sign Release Release && \
-    cp Release Release.gpg
-
-# 打包为ISO
+# 创建 ISO 镜像
 RUN genisoimage -r -o ${DIR}.iso ${DIR}
 
+# 最终输出阶段
 FROM scratch
-COPY --from=kylin /package/*.iso /
+COPY --from=builder /package/*.iso /
