@@ -40,6 +40,9 @@ openEuler:
 kylin:
   - chrony
   - k3s-selinux
+kylin:
+  - chront
+  - k3s-selinux
 uos:
   - chrony
   - k3s-selinux
