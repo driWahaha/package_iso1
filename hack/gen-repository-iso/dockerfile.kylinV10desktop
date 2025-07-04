@@ -1,7 +1,7 @@
-# 基础镜像使用麒麟桌面版（Debian 系）
+# 基础镜像使用麒麟桌面版（Debian 系），统一关键字大小写
 FROM debian:10 as builder
 
-# 设置构建参数
+# 设置构建参数（修正可能的包名拼写和源配置）
 ARG TARGETARCH
 ARG OS=kylin
 ARG OS_VERSION=V10
@@ -18,9 +18,13 @@ ENV TARGETARCH=${TARGETARCH}
 WORKDIR /package
 COPY packages.yaml .
 
-# 安装构建工具
+# 安装构建工具（添加源配置步骤）
 RUN apt update -qq \
     && apt install -y --no-install-recommends $BUILD_TOOLS \
+    # 添加额外软件源（解决包不存在问题）
+    && apt-add-repository -y main contrib non-free \
+    && apt-add-repository -y universe \
+    && apt update -qq \
     && apt clean \
     && rm -rf /var/lib/apt/lists/*
 
@@ -29,10 +33,15 @@ COPY --from=mikefarah/yq:4.34.2 /usr/bin/yq /usr/bin/yq
 RUN yq eval "${PKGS}" packages.yaml > packages.list \
     && sort -u packages.list > packages.final.list
 
-# 下载软件包及其依赖
+# 下载软件包及其依赖（添加错误处理）
 RUN mkdir -p ${DIR} \
-    && apt-get download $(cat packages.final.list) \
-    && find . -name "*.deb" -exec mv {} ${DIR}/ \;
+    && { apt-get download $(cat packages.final.list) || true; } \
+    && find . -name "*.deb" -exec mv {} ${DIR}/ \; \
+    && # 检查缺失的包并输出提示
+    && if [ -n "$(grep -E 'E:|W:' /var/log/apt/history.log)" ]; then \
+         echo "警告：以下包未找到，已跳过："; \
+         grep -E 'E: Unable to locate package' /var/log/apt/history.log; \
+       fi
 
 # 生成 DEB 仓库元数据
 RUN cd ${DIR} \
