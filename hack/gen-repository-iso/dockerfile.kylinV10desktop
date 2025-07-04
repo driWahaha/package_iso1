@@ -1,81 +1,49 @@
 # 基础镜像使用麒麟桌面版（Debian 系），统一关键字大小写
 FROM debian:10 as builder
 
-# 设置构建参数
+# 设置构建参数和环境变量
 ARG TARGETARCH
-ARG OS=kylin
-ARG OS_VERSION=V10
-ARG OS_RELEASE=buster
-ARG DIR=${OS}${OS_VERSION}-debian-${TARGETARCH}-debs
-ARG PKGS=.common[],.${OS}[],.${OS}Debian[],.${OS}${OS_VERSION}[]
-ARG BUILD_TOOLS="apt-transport-https software-properties-common ca-certificates curl wget gnupg dpkg-dev genisoimage dirmngr"
+ENV OS=kylin
+ENV OS_VERSION=V10
+ARG BUILD_TOOLS="dpkg-dev apt-utils apt-transport-https ca-certificates wget genisoimage"
+ARG DIR=${OS}${OS_VERSION}-${TARGETARCH}-debs
 
-# 设置环境变量
-ENV DEBIAN_FRONTEND=noninteractive
-ENV TARGETARCH=${TARGETARCH}
+# 安装构建工具
+RUN apt-get update -qq \
+    && apt-get install -y --no-install-recommends ${BUILD_TOOLS} \
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/*
 
-# 复制软件包列表配置文件
+# 创建工作目录
 WORKDIR /package
+
+# 复制包列表配置和源配置
 COPY packages.yaml .
+COPY k3s-common.repo /etc/apt/sources.list.d/
 
-# 安装构建工具（分阶段执行，确保依赖正确安装）
-RUN apt update -qq \
-    && apt install -y --no-install-recommends apt-transport-https ca-certificates curl gnupg \
-    && apt clean \
-    && rm -rf /var/lib/apt/lists/*
-
-# 单独安装 software-properties-common（包含 apt-add-repository）
-RUN apt update -qq \
-    && apt install -y --no-install-recommends software-properties-common \
-    && apt clean \
-    && rm -rf /var/lib/apt/lists/*
-
-# 添加额外软件源（直接修改sources.list，避免使用 apt-add-repository）
-RUN echo "deb http://deb.debian.org/debian ${OS_RELEASE} main contrib non-free" > /etc/apt/sources.list \
-    && echo "deb http://deb.debian.org/debian ${OS_RELEASE}-updates main contrib non-free" >> /etc/apt/sources.list \
-    && echo "deb http://deb.debian.org/debian ${OS_RELEASE}-backports main contrib non-free" >> /etc/apt/sources.list \
-    && echo "deb http://security.debian.org/debian-security ${OS_RELEASE}/updates main contrib non-free" >> /etc/apt/sources.list \
-    # 添加 universe 源（如果需要）
-    && echo "deb http://deb.debian.org/debian ${OS_RELEASE} universe" >> /etc/apt/sources.list \
-    && apt-key update \
-    && apt update -qq \
-    && apt clean \
-    && rm -rf /var/lib/apt/lists/*
-
-# 重新安装所有构建工具（确保完整性）
-RUN apt update -qq \
-    && apt install -y --no-install-recommends $BUILD_TOOLS \
-    && apt clean \
-    && rm -rf /var/lib/apt/lists/*
-
-# 生成软件包列表
+# 生成要下载的包列表
 COPY --from=mikefarah/yq:4.34.2 /usr/bin/yq /usr/bin/yq
-RUN yq eval "${PKGS}" packages.yaml > packages.list \
-    && sort -u packages.list > packages.final.list
+RUN yq eval ".common[],.${OS}[],.${OS}${OS_VERSION}[]" packages.yaml > packages.list
 
-# 下载软件包及其依赖
+# 创建临时目录并下载所有deb包
 RUN mkdir -p ${DIR} \
-    && { apt-get download $(cat packages.final.list) || true; } \
-    && find . -name "*.deb" -exec mv {} ${DIR}/ \; \
-    && { \
-         if [ -n "$(grep -E 'E:|W:' /var/log/apt/history.log 2>/dev/null)" ]; then \
-             echo "警告：以下包未找到，已跳过："; \
-             grep -E 'E: Unable to locate package' /var/log/apt/history.log 2>/dev/null || true; \
-         fi \
-       }
+    && apt-get update -qq \
+    && apt-get download $(cat packages.list) -o Dir::Cache::archives="${DIR}" \
+    && apt-get clean
 
-# 生成 DEB 仓库元数据
+# 生成DEB仓库元数据
 RUN cd ${DIR} \
-    && dpkg-scanpackages ./ /dev/null | gzip -9c > Packages.gz \
-    && echo "Origin: Kylin ${OS_VERSION} Offline Repo" > Release \
+    && dpkg-scanpackages . /dev/null | gzip -9 > Packages.gz \
+    && apt-ftparchive release . > Release \
+    && echo "Origin: Kylin ${OS_VERSION} Offline Repo" >> Release \
     && echo "Label: Kylin" >> Release \
     && echo "Version: ${OS_VERSION}" >> Release \
     && echo "Codename: ${OS_RELEASE}" >> Release \
     && echo "Architectures: ${TARGETARCH}" >> Release \
     && echo "Components: main" >> Release \
-    && echo "Description: Offline packages for Kylin Desktop ${OS_VERSION}" >> Release
+    && echo "Description: Offline DEB packages for Kylin ${OS_VERSION}" >> Release
 
-# 创建 ISO 镜像
+# 创建ISO镜像
 RUN genisoimage -r -o ${DIR}.iso ${DIR}
 
 # 最终输出阶段
