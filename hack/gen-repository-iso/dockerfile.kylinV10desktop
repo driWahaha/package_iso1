@@ -33,15 +33,16 @@ COPY --from=mikefarah/yq:4.34.2 /usr/bin/yq /usr/bin/yq
 RUN yq eval "${PKGS}" packages.yaml > packages.list \
     && sort -u packages.list > packages.final.list
 
-# 下载软件包及其依赖（添加错误处理）
+# 下载软件包及其依赖（修正语法错误）
 RUN mkdir -p ${DIR} \
     && { apt-get download $(cat packages.final.list) || true; } \
     && find . -name "*.deb" -exec mv {} ${DIR}/ \; \
-    && # 检查缺失的包并输出提示
-    && if [ -n "$(grep -E 'E:|W:' /var/log/apt/history.log)" ]; then \
-         echo "警告：以下包未找到，已跳过："; \
-         grep -E 'E: Unable to locate package' /var/log/apt/history.log; \
-       fi
+    && { \
+         if [ -n "$(grep -E 'E:|W:' /var/log/apt/history.log 2>/dev/null)" ]; then \
+             echo "警告：以下包未找到，已跳过："; \
+             grep -E 'E: Unable to locate package' /var/log/apt/history.log 2>/dev/null || true; \
+         fi \
+       }
 
 # 生成 DEB 仓库元数据
 RUN cd ${DIR} \
