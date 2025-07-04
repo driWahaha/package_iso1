@@ -18,7 +18,6 @@ WORKDIR /package
 
 # 复制包列表配置和源配置
 COPY packages.yaml .
-COPY k3s-common.repo /etc/apt/sources.list.d/
 
 # 生成要下载的包列表
 COPY --from=mikefarah/yq:4.34.2 /usr/bin/yq /usr/bin/yq
