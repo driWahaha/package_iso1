@@ -22,10 +22,8 @@ jobs:
           #   dockerfile: dockerfile.openEuler2309
           # - name: openEuler-24.03-rpms
           #   dockerfile: dockerfile.openEuler2403
-          # - name: kylin-V10-rpms
-          #   dockerfile: dockerfile.kylinV10
-          - name: kylin-V10-debs
-            dockerfile: dockerfile.kylinV10desktop
+          - name: kylin-V10-rpms
+            dockerfile: dockerfile.kylinV10
           # - name: uos-20-rpms
           #   dockerfile: dockerfile.uos20
           # - name: almalinux-9.0-rpms
